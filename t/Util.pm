@@ -15,7 +15,6 @@ use Test::More 0.98;
 
 our @EXPORT = qw(
     slurp
-
 );
 
 {
@@ -45,6 +44,5 @@ use Behoimi;
     unlink 'db/test.db' if -f 'db/test.db';
     system("sqlite3 db/test.db < sql/sqlite.sql");
 }
-
 
 1;

@@ -9,4 +9,7 @@ my $dbpath = File::Spec->catfile($basedir, 'db', 'production.db');
             sqlite_unicode => 1,
         }
     ],
+    'Text::Xslate' => {
+        path => File::Spec->catdir($basedir, 'tmpl'),
+    },
 };

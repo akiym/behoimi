@@ -1,24 +1,32 @@
 package Behoimi::Web;
-use strict;
+use v5.20;
 use warnings;
 use utf8;
 use parent qw/Behoimi Amon2::Web/;
-use File::Spec;
 
-# dispatcher
+use Behoimi::Web::Request;
+sub create_request { Behoimi::Web::Request->new($_[1], $_[0]) }
+
 use Behoimi::Web::Dispatcher;
 sub dispatch {
     return (Behoimi::Web::Dispatcher->dispatch($_[0]) or die "response is not generated");
 }
 
-# load plugins
+use HTTP::Throwable::Factory;
+sub throw_redirect {
+    my $c = shift;
+    my $res = $c->redirect(@_);
+    HTTP::Throwable::Factory->throw(Found => {
+        location => $res->location,
+    });
+}
+
 __PACKAGE__->load_plugins(
     'Web::FillInFormLite',
     'Web::JSON',
     '+Behoimi::Web::Plugin::Session',
 );
 
-# setup view
 use Behoimi::Web::View;
 {
     sub create_view {
@@ -32,7 +40,7 @@ use Behoimi::Web::View;
 # for your security
 __PACKAGE__->add_trigger(
     AFTER_DISPATCH => sub {
-        my ( $c, $res ) = @_;
+        my ($c, $res) = @_;
 
         # http://blogs.msdn.com/b/ie/archive/2008/07/02/ie8-security-part-v-comprehensive-protection.aspx
         $res->header( 'X-Content-Type-Options' => 'nosniff' );

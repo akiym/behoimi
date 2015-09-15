@@ -4,65 +4,68 @@ use warnings;
 use utf8;
 use File::Spec;
 use File::Basename;
-use lib File::Spec->catdir(dirname(__FILE__), '../lib');
-use Plack::Builder;
+use lib File::Spec->catdir(dirname(__FILE__), '..', 'lib');
+use Proclet;
 
-use Behoimi::Web;
-use Behoimi;
-use URI::Escape;
-use File::Path ();
+my $proclet = Proclet->new(
+    color => 1,
+);
 
-my $app = builder {
-    enable 'Plack::Middleware::Static',
-        path => qr{^(?:/static/)},
-        root => File::Spec->catdir(dirname(__FILE__), '..');
-    enable 'Plack::Middleware::Static',
-        path => qr{^(?:/robots\.txt|/favicon\.ico)$},
-        root => File::Spec->catdir(dirname(__FILE__), '..', 'static');
-    enable 'Plack::Middleware::ReverseProxy';
+$proclet->service(
+    code => \&run_web,
+    tag => 'web',
+);
 
-    Behoimi::Web->to_app();
-};
-unless (caller) {
+$proclet->run;
+
+sub run_web {
     my $port        = 5000;
     my $host        = '127.0.0.1';
-    my $max_workers = 4;
+    my $max_workers = 1;
+    my $server      = 'HTTP::Server::PSGI';
+    my $watch_dirs  = 'lib,script';
+
+    $ENV{AMON2_DEBUG} = 1;
 
     require Getopt::Long;
-    require Plack::Loader;
+    require Plack::Runner;
     my $p = Getopt::Long::Parser->new(
-        config => [qw(posix_default no_ignore_case auto_help)]
+        config => [qw(posix_default no_ignore_case)]
     );
     $p->getoptions(
         'p|port=i'      => \$port,
         'host=s'        => \$host,
         'max-workers=i' => \$max_workers,
-        'version!'      => \my $version,
+        'watch=s'       => \$watch_dirs,
         'c|config=s'    => \my $config_file,
     );
-    if ($version) {
-        print "Behoimi: $Behoimi::VERSION\n";
-        exit 0;
-    }
     if ($config_file) {
         my $config = do $config_file;
-        Carp::croak("$config_file: $@") if $@;
-        Carp::croak("$config_file: $!") unless defined $config;
+        die "$config_file: $@" if $@;
+        die "$config_file: $!" unless defined $config;
         unless ( ref($config) eq 'HASH' ) {
-            Carp::croak("$config_file does not return HashRef.");
+            die "$config_file does not return HashRef.";
         }
         no warnings 'redefine';
         no warnings 'once';
-        *Behoimi::load_config = sub { $config }
+        *Behoimi::load_config = sub { $config };
+    }
+    if ($watch_dirs) {
+        $watch_dirs = join ',',
+            map { File::Spec->catdir(dirname(__FILE__), '..', $_) }
+            split /,/, $watch_dirs;
     }
 
-    print "Behoimi: http://${host}:${port}/\n";
-
-    my $loader = Plack::Loader->load('Starlet',
-        port        => $port,
-        host        => $host,
-        max_workers => $max_workers,
+    my $runner = Plack::Runner->new(
+        default_middleware => 0,
     );
-    return $loader->run($app);
+    $runner->parse_options(
+        '--app'         => File::Spec->catdir(dirname(__FILE__), 'app.psgi'),
+        '--host'        => $host,
+        '--port'        => $port,
+        '--Reload'      => $watch_dirs,
+        '--server'      => $server,
+        '--max-workers' => $max_workers,
+    );
+    $runner->run;
 }
-return $app;

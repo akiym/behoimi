@@ -6,7 +6,7 @@ use Plack::Test;
 use Plack::Util;
 use Test::More;
 
-my $app = Plack::Util::load_psgi 'script/behoimi-server';
+my $app = Plack::Util::load_psgi 'script/app.psgi';
 test_psgi
     app => $app,
     client => sub {

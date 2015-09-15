@@ -9,4 +9,8 @@ my $dbpath = File::Spec->catfile($basedir, 'db', 'development.db');
             sqlite_unicode => 1,
         }
     ],
+    'Text::Xslate' => {
+        path         => File::Spec->catdir($basedir, 'tmpl'),
+        warn_handler => sub { Text::Xslate->print('[[', @_, ']]') },
+    },
 };

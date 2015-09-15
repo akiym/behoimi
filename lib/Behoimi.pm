@@ -1,47 +1,28 @@
 package Behoimi;
-use strict;
+use v5.20;
 use warnings;
 use utf8;
-our $VERSION='0.01';
-use 5.008001;
-use Behoimi::DB::Schema;
-use Behoimi::DB;
-
 use parent qw/Amon2/;
-# Enable project local mode.
-__PACKAGE__->make_local_context();
+our $VERSION='0.01';
 
-my $schema = Behoimi::DB::Schema->instance;
+use Hash::Util;
+
+use Behoimi::DB;
+use Behoimi::DB::Schema;
+
+sub load_config {
+    my $class = shift;
+    my $config = Amon2::Config::Simple->load($class);
+    Hash::Util::lock_keys(%$config);
+    return $config;
+}
 
 sub db {
     my $c = shift;
-    if (!exists $c->{db}) {
-        my $conf = $c->config->{DBI}
-            or die "Missing configuration about DBI";
-        $c->{db} = Behoimi::DB->new(
-            schema       => $schema,
-            connect_info => [@$conf],
-            # I suggest to enable following lines if you are using mysql.
-            # on_connect_do => [
-            #     'SET SESSION sql_mode=STRICT_TRANS_TABLES;',
-            # ],
-        );
-    }
-    $c->{db};
+    $c->{db} //= Behoimi::DB->new(
+        schema       => Behoimi::DB::Schema->instance,
+        connect_info => $c->config->{DBI},
+    );
 }
 
 1;
-__END__
-
-=head1 NAME
-
-Behoimi - Behoimi
-
-=head1 DESCRIPTION
-
-This is a main context class for Behoimi
-
-=head1 AUTHOR
-
-Behoimi authors.
-
